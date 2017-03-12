@@ -14,7 +14,7 @@ export default class View {
 				).filter(
 					v => !isEmpty(v)
 				)
-			).onValue(
+			).observe(
 				v => this._refresh(v)
 			);
 
@@ -41,7 +41,7 @@ export default class View {
 	}
 
 	_emit(v) {
-		this._emitter && this._emitter.emit(v);
+		this._emitter && this._emitter.value(v);
 	}
 
 	_refresh(data) {

@@ -1,20 +1,30 @@
 import isNull from 'lodash/isNull';
 import mapValues from 'lodash/mapValues';
 import set from 'lodash/set';
+
 import Kefir from 'kefir';
+
 import dom from './actors/dom';
 import firebase from './actors/firebase';
 import storage from './actors/storage';
 import url from './actors/url';
+
 import event$ from './lib/event$';
 
 export default data => {
+	// create a logging function
+	const observer = (name, color) => data.env === 'development' ? {
+		value: e => console.log(`%c${name}: ${JSON.stringify(e[e.type])}`,`background:${color}`),
+		error: console.log
+	} : {};
+
+	// create the input/output pools
 	const events = Kefir.pool();
 	const changes = Kefir.pool();
 
 	// activate (and log) the pools
-	events.onAny(e => data.env === 'development' && console.log(`%ci: ${JSON.stringify(e[e.type])}`,'background:#fef'));
-	changes.onAny(e => data.env === 'development' && console.log(`%co: ${JSON.stringify(e[e.type])}`,'background:#eff'));
+	events.observe(observer('i','#fef'));
+	changes.observe(observer('o','#eff'));
 
 	// simple change event to state change passthrough
 	changes.plug(
