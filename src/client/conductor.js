@@ -1,21 +1,28 @@
+// import lodash functions
 import isNull from 'lodash/isNull';
+import isString from 'lodash/isString';
 import mapValues from 'lodash/mapValues';
 import set from 'lodash/set';
 
+// import Kefir
 import Kefir from 'kefir';
 
+// import actors
 import dom from './actors/dom';
 import firebase from './actors/firebase';
 import storage from './actors/storage';
 import url from './actors/url';
 
+// import libs
+import arrayFlatMap from './lib/arrayFlatMap';
 import event$ from './lib/event$';
 
+// The App Conductor. Responsible for mapping events to state changes.
 export default data => {
 	// create a logging function
 	const observer = (name, color) => data.env === 'development' ? {
-		value: e => console.log(`%c${name}: ${JSON.stringify(e[e.type])}`,`background:${color}`),
-		error: console.log
+		value: v => console.log(`%c${name}: ${JSON.stringify(v)}`,`background:${color}`),
+		error: console.error
 	} : {};
 
 	// create the input/output pools
@@ -26,17 +33,24 @@ export default data => {
 	events.observe(observer('i','#fef'));
 	changes.observe(observer('o','#eff'));
 
+	// try to filter out duplicate topic events
+	let filters = [];
+	event$(events, 'set:topic').filter(isString).observe(v => filters.push(v));
+	const topic$ = event$(events, 'change:topic').filter(isString);
+	changes.plug(topic$.filter(v => filters.indexOf(v) < 0).map(val => ({topic:val})));
+	topic$.filter(v => filters.indexOf(v) > -1).map(v => filters.indexOf(v)).observe(i => filters.splice(i,1));
+
 	// simple change event to state change passthrough
-	changes.plug(
-		Kefir.constant(['name', 'show_votes', 'topic', 'users', 'vote']).flatten()
-		.flatMap(key => event$(events, `change:${key}`).map(val => ({[key]:val})))
-	);
+	changes.plug(arrayFlatMap(
+		['name', 'show_votes', 'users', 'vote'],
+		key => event$(events, `change:${key}`).map(val => ({[key]:val}))
+	));
 
 	// simple set event to state change passthrough
-	changes.plug(
-		Kefir.constant(['name', 'topic', 'vote']).flatten()
-		.flatMap(key => event$(events, `set:${key}`).map(val => ({[key]:val})))
-	);
+	changes.plug(arrayFlatMap(
+		['name', 'topic', 'vote'],
+		key => event$(events, `set:${key}`).map(val => ({[key]:val}))
+	));
 
 	// set room on submit
 	changes.plug(event$(events, 'submit:room').skipDuplicates().map(room => ({room})));
@@ -59,8 +73,10 @@ export default data => {
 
 	// connect actors
 	events.plug(
-		Kefir.constant([dom, firebase, storage, url]).flatten()
-		.flatMap(actor => actor(changes))
+		arrayFlatMap(
+			[dom, firebase, storage, url],
+			actor => actor(changes)
+		)
 	);
 
 	// initial state

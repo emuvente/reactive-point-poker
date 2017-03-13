@@ -1,23 +1,32 @@
-import 'firebase/auth';
-import 'firebase/database';
-
+// import lodash functions
 import isArray from 'lodash/isArray';
 import isBoolean from 'lodash/isBoolean';
 import isEqual from 'lodash/isEqual';
 import isNull from 'lodash/isNull';
 import isObject from 'lodash/isObject';
 import isString from 'lodash/isString';
-import firebase from 'firebase/app';
+
+// other imports
+import arrayFlatMap from '../lib/arrayFlatMap';
 import event$ from '../lib/event$';
 import Kefir from 'kefir';
 
+// init Firebase library
+import 'firebase/auth';
+import 'firebase/database';
+import Firebase from 'firebase/app';
+
+// create an event stream from a Firebase Snapshot
+const snapToEvent$ = stream => stream.map(snap => ({ [`change:${snap.key}`]: snap.val() })).skipDuplicates(isEqual);
+
+// actor function export
 export default changes => {
 	let roomRef, userRef, refs = [];
 
-	// init firebase
+	// init Firebase
 	const app$ = event$(changes, 'firebase')
 		.filter(isObject)
-		.map(config => firebase.initializeApp(config))
+		.map(config => Firebase.initializeApp(config))
 		.filter();
 
 	// init auth
@@ -49,7 +58,7 @@ export default changes => {
 
 	return Kefir.combine([room$, user$])
 		.flatMap(([room, user]) => {
-			// drop references to old room
+			// drop references to old room and update room reference
 			if(roomRef) roomRef.off();
 			roomRef = room;
 
@@ -60,19 +69,17 @@ export default changes => {
 
 			// drop old references
 			refs.map(ref => ref.off());
+
+			// make new references
 			refs = [
 				room.child('show_votes'),
-				room.child('users'),
-				room.child('topic'),
 				room.child('votes'),
-				user.child('vote')
+				user.child('vote'),
+				room.child('users'),
+				room.child('topic')
 			];
 
 			// return new streams
-			return Kefir.constant(refs).flatten().flatMap(ref =>
-				Kefir.fromEvents(ref, 'value').map(
-					snap => ({ [`change:${snap.key}`]: snap.val() })
-				).skipDuplicates(isEqual)
-			);
+			return snapToEvent$(arrayFlatMap(refs, ref => Kefir.fromEvents(ref, 'value')));
 		});
 };
