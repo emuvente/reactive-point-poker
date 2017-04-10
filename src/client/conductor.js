@@ -29,38 +29,47 @@ export default data => {
 	const events = Kefir.pool();
 	const changes = Kefir.pool();
 
+	// a shared change pool was a bad idea.
+	const firebaseChanges = Kefir.pool();
+
 	// activate (and log) the pools
 	events.observe(observer('i','#fef'));
 	changes.observe(observer('o','#eff'));
 
-	// try to filter out duplicate topic events
-	let filters = [];
-	event$(events, 'set:topic').filter(isString).observe(v => filters.push(v));
-	const topic$ = event$(events, 'change:topic').filter(isString);
-	changes.plug(topic$.filter(v => filters.indexOf(v) < 0).map(val => ({topic:val})));
-	topic$.filter(v => filters.indexOf(v) > -1).map(v => filters.indexOf(v)).observe(i => filters.splice(i,1));
+	// confirm my changes to topic happen before reading new value
+	const pending$ = Kefir.merge([
+		event$(events, 'set:topic').filter(isString).map(() => 1),
+		event$(events, 'report:topic').filter(isString).map(() => -1)
+	]);
+	const nonePending$ = pending$.scan((a,b) => Math.max(a + b, 0), 0).map(pending => pending === 0);
+	const negPending$ = pending$.scan((a,b) => a + b, 0).map(pending => pending < 0);
+	changes.plug(event$(events, 'change:topic').filterBy(nonePending$).map(topic => ({topic})));
+	changes.plug(event$(events, 'report:topic').filterBy(negPending$).map(topic => ({topic})));
 
 	// simple change event to state change passthrough
 	changes.plug(arrayFlatMap(
 		['name', 'show_votes', 'users', 'vote'],
 		key => event$(events, `change:${key}`).map(val => ({[key]:val}))
 	));
+	firebaseChanges.plug(event$(events, 'change:name').map(name => ({name})));
 
 	// simple set event to state change passthrough
-	changes.plug(arrayFlatMap(
+	firebaseChanges.plug(arrayFlatMap(
 		['name', 'topic', 'vote'],
 		key => event$(events, `set:${key}`).map(val => ({[key]:val}))
 	));
+	changes.plug(event$(events, 'set:name').map(name => ({name})));
 
 	// set room on submit
 	changes.plug(event$(events, 'submit:room').skipDuplicates().map(room => ({room})));
+	firebaseChanges.plug(event$(events, 'submit:room').skipDuplicates().map(room => ({room})));
 
 	// set deck
 	changes.plug(event$(events, 'change:votes').filter().map(votes => ({votes})));
-	changes.plug(event$(events, 'change:votes').filter(isNull).map(() => ({votes: data.defaultVotes})));
+	firebaseChanges.plug(event$(events, 'change:votes').filter(isNull).map(() => ({votes: data.defaultVotes})));
 
 	// reset action
-	changes.plug(
+	firebaseChanges.plug(
 		event$(events, 'change:users')
 		.sampledBy(event$(events, 'click:reset'))
 		.filter()
@@ -71,16 +80,19 @@ export default data => {
 	// reveal action
 	changes.plug(Kefir.constant({show_votes: true}).sampledBy(event$(events, 'click:reveal')));
 
-	// connect actors
+	// connect firebase actor
+	events.plug(firebase(firebaseChanges));
+
+	// connect other actors
 	events.plug(
 		arrayFlatMap(
-			[dom, firebase, storage, url],
+			[dom, storage, url],
 			actor => actor(changes)
 		)
 	);
 
 	// initial state
-	changes.plug(Kefir.constant({
-		firebase: data.firebase
-	}));
+	const init$ = Kefir.constant({ firebase: data.firebase });
+	changes.plug(init$);
+	firebaseChanges.plug(init$);
 };
