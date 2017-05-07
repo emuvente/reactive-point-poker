@@ -33,8 +33,9 @@ export default data => {
 	const firebaseChanges = Kefir.pool();
 
 	// activate (and log) the pools
-	events.observe(observer('i','#fef'));
-	changes.observe(observer('o','#eff'));
+	events.observe(observer('e','#fef'));
+	changes.observe(observer('c','#eff'));
+	firebaseChanges.observe(observer('f','#cff'));
 
 	// confirm my changes to topic happen before reading new value
 	const pending$ = Kefir.merge([
@@ -78,7 +79,7 @@ export default data => {
 	);
 
 	// reveal action
-	changes.plug(Kefir.constant({show_votes: true}).sampledBy(event$(events, 'click:reveal')));
+	firebaseChanges.plug(Kefir.constant({show_votes: true}).sampledBy(event$(events, 'click:reveal')));
 
 	// connect firebase actor
 	events.plug(firebase(firebaseChanges));
