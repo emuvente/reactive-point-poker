@@ -10,8 +10,12 @@ export default (base, a, b) => {
 	const bFromBase = diff.main(base, b);
 	const aFromB = diff.main(b, a);
 
+	// cleanup diffs
+	diff.cleanupEfficiency(bFromBase);
+	diff.cleanupEfficiency(aFromB);
+
 	// invert b changes to use as filter
-	const inverted = bFromBase.map(change => (change[0]*=-1,change));
+	const inverted = bFromBase.filter(change => change[0] !== 0).map(change => [change[0]*-1, change[1]]);
 
 	// remove a changes that undo b changes, and join remaining
 	return aFromB.filter(change => {

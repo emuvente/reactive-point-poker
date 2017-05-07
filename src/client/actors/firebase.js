@@ -97,7 +97,7 @@ export default changes => {
 					.map(([, ...topics]) => topics.join(':')),
 			]).sampledBy(event$(changes, 'topic').filter(isString))
 				.observe(([value, local]) => room.child('topic').transaction(remote => {
-					remote = remote === null ? '' : remote;
+					remote = remote === null ? '' : remote.split(':')[1];
 					return `${user.key}:${textMerge(local, value, remote)}`;
 				}));
 
