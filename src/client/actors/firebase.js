@@ -5,6 +5,8 @@ import isEqual from 'lodash/isEqual';
 import isNull from 'lodash/isNull';
 import isObject from 'lodash/isObject';
 import isString from 'lodash/isString';
+import mapValues from 'lodash/mapValues';
+import set from 'lodash/set';
 
 // other imports
 import arrayFlatMap from '../lib/arrayFlatMap';
@@ -39,9 +41,17 @@ export default changes => {
 
 	// init updates
 	event$(changes, 'show_votes').filter(isBoolean).observe(show_votes => roomRef && roomRef.update({show_votes}));
-	event$(changes, 'users').filter(isObject).observe(users => roomRef && roomRef.update({users}));
 	event$(changes, 'votes').filter(isArray).observe(votes => roomRef && roomRef.update({votes}));
 	event$(changes, 'vote').filter(isString).observe(vote => userRef && userRef.update({vote}));
+
+	// clear votes transaction
+	event$(changes, 'clear_votes').filter().observe(() => roomRef &&
+		roomRef.child('users').transaction(users =>
+			mapValues(users, user =>
+				set(user, 'vote', '')
+			)
+		)
+	);
 
 	// init room
 	const room$ = app$.map(app => app.database().ref())
@@ -77,7 +87,7 @@ export default changes => {
 				room.child('users')
 			];
 
-			// merge changes to topic
+			// transaction to merge changes to topic
 			Kefir.combine([
 				Kefir.merge([event$(changes, 'topic'), Kefir.constant('')]),
 				Kefir.fromEvents(room.child('topic'), 'value')

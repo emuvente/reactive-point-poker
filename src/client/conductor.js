@@ -1,21 +1,18 @@
-// import lodash functions
-import isNull from 'lodash/isNull';
-import isString from 'lodash/isString';
-import mapValues from 'lodash/mapValues';
-import set from 'lodash/set';
-
-// import Kefir
 import Kefir from 'kefir';
 
-// import actors
+// lodash functions
+import isNull from 'lodash/isNull';
+import isString from 'lodash/isString';
+
+// libs
+import arrayFlatMap from './lib/arrayFlatMap';
+import event$ from './lib/event$';
+
+// actors
 import dom from './actors/dom';
 import firebase from './actors/firebase';
 import storage from './actors/storage';
 import url from './actors/url';
-
-// import libs
-import arrayFlatMap from './lib/arrayFlatMap';
-import event$ from './lib/event$';
 
 // The App Conductor. Responsible for mapping events to state changes.
 export default data => {
@@ -70,16 +67,16 @@ export default data => {
 	firebaseChanges.plug(event$(events, 'change:votes').filter(isNull).map(() => ({votes: data.defaultVotes})));
 
 	// reset action
-	firebaseChanges.plug(
-		event$(events, 'change:users')
-		.sampledBy(event$(events, 'click:reset'))
-		.filter()
-		.map(users => mapValues(users, user => set(user, 'vote', '')))
-		.map(users => ({ show_votes: false, topic: '', users }))
-	);
+	firebaseChanges.plug(Kefir.constant({
+		show_votes: false,
+		topic: '',
+		clear_votes: true
+	}).sampledBy(event$(events, 'click:reset')));
 
 	// reveal action
-	firebaseChanges.plug(Kefir.constant({show_votes: true}).sampledBy(event$(events, 'click:reveal')));
+	firebaseChanges.plug(Kefir.constant({
+		show_votes: true
+	}).sampledBy(event$(events, 'click:reveal')));
 
 	// connect firebase actor
 	events.plug(firebase(firebaseChanges));
@@ -94,6 +91,6 @@ export default data => {
 
 	// initial state
 	const init$ = Kefir.constant({ firebase: data.firebase });
-	changes.plug(init$);
 	firebaseChanges.plug(init$);
+	changes.plug(init$);
 };
