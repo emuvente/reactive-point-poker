@@ -5,13 +5,12 @@ import isEqual from 'lodash/isEqual';
 import isNull from 'lodash/isNull';
 import isObject from 'lodash/isObject';
 import isString from 'lodash/isString';
-import findIndex from 'lodash/findIndex';
 
 // other imports
 import arrayFlatMap from '../lib/arrayFlatMap';
 import event$ from '../lib/event$';
+import textMerge from '../lib/textMerge';
 import Kefir from 'kefir';
-import Diff from 'text-diff';
 
 // init Firebase library
 import 'firebase/auth';
@@ -24,7 +23,6 @@ const snapToEvent$ = stream => stream.map(snap => ({ [`change:${snap.key}`]: sna
 // actor function export
 export default changes => {
 	let roomRef, userRef, refs = [];
-	const diff = new Diff();
 
 	// init Firebase
 	const app$ = event$(changes, 'firebase')
@@ -79,35 +77,24 @@ export default changes => {
 				room.child('users')
 			];
 
+			// merge changes to topic
 			Kefir.combine([
-				event$(changes, 'topic'),
+				Kefir.merge([event$(changes, 'topic'), Kefir.constant('')]),
 				Kefir.fromEvents(room.child('topic'), 'value')
 					.map(snap => snap.val())
+					.map(val => val === null ? '' : val)
 					.map(val => val.split(':'))
 					.map(([, ...topics]) => topics.join(':')),
 			]).sampledBy(event$(changes, 'topic').filter(isString))
 				.observe(([value, local]) => room.child('topic').transaction(remote => {
-					// generate diffs
-					const remoteFromLocal = diff.main(local, remote);
-					const valueFromRemote = diff.main(remote, value);
-
-					// invert remote changes to use as filter
-					const inverted = remoteFromLocal.filter(change => change[0] !== 0).map(change => (change[0]*=-1,change));
-
-					// remove changes that undo remote changes, and join remaining
-					return valueFromRemote.filter(change => {
-						let i = findIndex(inverted, val => isEqual(change, val));
-						if(i > -1) {
-							inverted.splice(i,1);
-							return false;
-						}
-						return true;
-					}).filter(change => change[0] !== -1)
-						.reduce((result, change) => result + change[1], `${user.key}:`);
+					remote = remote === null ? '' : remote;
+					return `${user.key}:${textMerge(local, value, remote)}`;
 				}));
 
+			// make topic stream
 			const topic$ = Kefir.fromEvents(room.child('topic'), 'value')
 				.map(snap => snap.val())
+				.map(val => val === null ? '' : val)
 				.map(val => val.split(':'))
 				.map(([uid, ...topics]) => ({uid, value:topics.join(':')}));
 
