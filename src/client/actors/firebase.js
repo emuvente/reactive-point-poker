@@ -87,6 +87,17 @@ export default changes => {
 				room.child('users')
 			];
 
+			// recover user if they somehow go null
+			Kefir.fromEvents(user, 'value')
+				.map(snap => snap.val())
+				.filter()
+				.sampledBy(
+					Kefir.fromEvents(user, 'value')
+					.map(snap => snap.val())
+					.filter(isNull)
+					.map(()=>true)
+				).observe(userVal => user.update(userVal));
+
 			// transaction to merge changes to topic
 			Kefir.combine([
 				Kefir.merge([event$(changes, 'topic'), Kefir.constant('')]),
