@@ -17,6 +17,7 @@ module.exports = class UsersView extends View {
 					let angle = (i/num + 1/(num*2)) * Math.PI;
 					let left = 50 + Math.cos(angle)*50;
 					let top = (1 - Math.sin(angle))*100;
+					let vote = u.vote === undefined ? '' : u.vote;
 					return ['li', {
 						class: 'player',
 						style: `
@@ -25,12 +26,13 @@ module.exports = class UsersView extends View {
 							transform: translate(${-left}%, ${-top}%);
 						`
 					},
-						`${u.name}: `,
-						['span', {
-							class: this._data.show_votes ? '' : 'hidden'
-						},
-							`${u.vote === undefined ? '' : u.vote}`
-						]
+						['span', `${u.name}: `],
+						vote.length ? [
+							'span', {
+								class: this._data.show_votes ? 'vote' : 'hidden vote'
+							},
+							`${vote}`
+						] : []
 					];
 				}
 			)];
