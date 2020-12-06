@@ -13,12 +13,12 @@ export default class ResultsView extends View {
 				.map(data => data.users)
 				.filter()
 				.map(values)
-				.map(users => filter(users, user => user.vote !== undefined))
+				.map(users => filter(users, user => user.is_voter && user.vote !== undefined))
 				.map(users => users.map(user => user.vote))
 				.map(votes => countBy(votes))
 				.map(counts => map(counts, (count, vote) => ({vote,count}) ))
 				.map(votes => ({
-					votes: sortBy(votes, o => parseFloat(o.vote)),
+					votes: sortBy(votes, o => o.vote.length ? parseFloat(o.vote) : -1),
 					total: sumBy(votes, 'count')
 				}));
 		});
@@ -29,6 +29,7 @@ export default class ResultsView extends View {
 			return ['ul', {class: 'scoreboard'},
 				this._data.votes.filter(v=>v!==undefined).map(
 					vote => ['li', {
+						class: vote.vote.length ? '' : 'empty',
 						style: `font-size: ${(vote.count / this._data.total) * 100}%;`
 					}, vote.vote]
 				)

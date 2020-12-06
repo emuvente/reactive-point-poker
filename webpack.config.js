@@ -8,19 +8,24 @@ module.exports = {
 		'window': 'window'
 	},
 	module: {
-		loaders: [
+		rules: [
 			{
 				test: /\.js$/,
 				exclude: /(node_modules)/,
 				loader: 'babel-loader',
-				query: {
-					presets: ['es2015']
+				options: {
+					presets: [
+						[
+							'@babel/preset-env',
+							{
+								'useBuiltIns': 'usage',
+								'corejs': 2
+							}
+						]
+					]
 				}
 			}
 		]
 	},
-	plugins: [
-		new webpack.optimize.UglifyJsPlugin()
-	],
 	devtool: 'source-map'
 };

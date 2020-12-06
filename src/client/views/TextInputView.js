@@ -3,7 +3,7 @@ import Kefir from 'kefir';
 import w from 'window';
 
 export default class TextInputView extends View {
-	constructor(changes, name, className, placeholder) {
+	constructor(changes, { name, className, placeholder }) {
 		super(changes, [name]);
 		this.name = name;
 		this.className = className || name;
@@ -31,20 +31,23 @@ export default class TextInputView extends View {
 	_render() {
 		const value = this._data[this.name] ? this._data[this.name] : this.placeholder;
 
-		return ['div', {
-			class: `text-input ${this.className}`
-		},
-			['input', {
-				oninput: e => {
-					e.target.style = `width: calc(${this.measure(e.target.value.length ? e.target.value : this.placeholder)}px + 0.5rem)`;
-					this._emit(`input:${e.target.value}`);
-				},
-				onchange: e => this._emit(`change:${e.target.value}`),
-				type: 'text',
-				placeholder: ' ',
-				style: `width: calc(${this.measure(value)}px + 0.5rem)`,
-				value: this._data[this.name]
-			}],
+		return ['div',
+			{
+				class: `text-input ${this.className}`
+			},
+			['input',
+				{
+					oninput: e => {
+						e.target.style = `width: calc(${this.measure(e.target.value.length ? e.target.value : this.placeholder)}px + 0.5rem)`;
+						this._emit(`input:${e.target.value}`);
+					},
+					onchange: e => this._emit(`change:${e.target.value}`),
+					type: 'text',
+					placeholder: ' ',
+					style: `width: calc(${this.measure(value)}px + 0.5rem)`,
+					value: this._data[this.name]
+				}
+			],
 			['label', {}, this.placeholder]
 		];
 	}

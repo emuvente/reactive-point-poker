@@ -12,6 +12,14 @@
       },
       "users": {
         "$user_id": {
+          "is_voter": {
+            ".write": "auth.uid === $user_id",
+            ".validate": "newData.isBoolean()"
+          },
+          "is_editor": {
+            ".write": "auth.uid === $user_id",
+            ".validate": "newData.isBoolean()"
+          },
           "name": {
             ".write": "auth.uid === $user_id",
             ".validate": "newData.isString() && newData.val().length < 32"

@@ -2,6 +2,7 @@ const gulp = require('gulp')
 	, ejs = require('gulp-ejs')
 	, livereload = require('gulp-livereload')
 	, nodemon = require('gulp-nodemon')
+	, rename = require('gulp-rename')
 	, stylus = require('gulp-stylus')
 	, svgmin = require('gulp-svgmin')
 	, svgstore = require('gulp-svgstore')
@@ -32,17 +33,25 @@ gulp.task('html', function() {
 					apiKey: config('FIREBASE_KEY'),
 					authDomain: config('FIREBASE_DOMAIN'),
 					databaseURL: config('FIREBASE_DBURL'),
-					storageBucket: config('FIREBASE_STORE')
+					projectId: config('FIREBASE_NAME'),
+					storageBuckets: config('FIREBASE_STORE'),
+					appId: config('FIREBASE_APP')
 				}
 			}
-		}, {}, { ext: '.html' }))
+		}))
+		.pipe(rename({ extname: '.html' }))
 		.pipe(gulp.dest('public'))
 		.pipe(livereload());
 });
 
 gulp.task('svg', function() {
 	return gulp.src('src/icons/*.svg')
-		.pipe(svgmin())
+		.pipe(svgmin({
+			plugins: [
+				{ removeViewBox: false },
+				{ removeDimensions: true }
+			]
+		}))
 		.pipe(svgstore())
 		.pipe(gulp.dest('public/img/'))
 		.pipe(livereload());
@@ -61,11 +70,11 @@ gulp.task('watch', function() {
 		gulp.src('src/server/app.js')
 			.pipe(livereload());
 	});
-	gulp.watch('src/styl/**/*.styl', ['css']);
-	gulp.watch('src/server/views/*.ejs', ['html']);
-	gulp.watch('src/img/**/*.svg', ['svg']);
-	gulp.watch('src/client/**/*.js', ['webpack']);
+	gulp.watch('src/styl/**/*.styl', gulp.task('css'));
+	gulp.watch('src/server/views/*.ejs', gulp.task('html'));
+	gulp.watch('src/img/**/*.svg', gulp.task('svg'));
+	gulp.watch('src/client/**/*.js', gulp.task('webpack'));
 });
 
-gulp.task('build', ['css', 'html', 'svg', 'webpack']);
-gulp.task('default', ['build', 'watch']);
+gulp.task('build', gulp.series('css', 'html', 'svg', 'webpack'));
+gulp.task('default', gulp.series('build', 'watch'));

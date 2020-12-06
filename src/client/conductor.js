@@ -1,6 +1,7 @@
 import Kefir from 'kefir';
 
 // lodash functions
+import isBoolean from 'lodash/isBoolean';
 import isNull from 'lodash/isNull';
 import isString from 'lodash/isString';
 
@@ -57,6 +58,16 @@ export default data => {
 		key => event$(events, `set:${key}`).map(val => ({[key]:val}))
 	));
 	changes.plug(event$(events, 'set:name').map(name => ({name})));
+
+	// is_voter change event if the value is a boolean
+	const isVoter$ = event$(events, 'change:is_voter').filter(isBoolean).map(is_voter => ({is_voter}));
+	changes.plug(isVoter$);
+	firebaseChanges.plug(isVoter$);
+
+	// is_editor change event if the value is a boolean
+	const isEditor$ = event$(events, 'change:is_editor').filter(isBoolean).map(is_editor => ({is_editor}));
+	changes.plug(isEditor$);
+	firebaseChanges.plug(isEditor$);
 
 	// set room on submit
 	changes.plug(event$(events, 'submit:room').skipDuplicates().map(room => ({room})));

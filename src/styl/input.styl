@@ -9,7 +9,7 @@ text-input-styling()
 	display inline-block
 	vertical-align middle
 
-	input[type="text"]
+	input[type=text]
 		text-input-styling()
 		display block
 		margin 0
@@ -35,3 +35,21 @@ text-input-styling()
 
 		&:placeholder-shown ~ label
 			display inline
+
+.toggle-input
+	display inline-block
+
+	input[type=checkbox]
+		display none
+
+		& + label
+			display inline-block
+			padding 0.25rem 0.5rem
+			background-color lightness(#a4a, 90%)
+			border-radius 2rem
+			color #fff
+			box-shadow 0 0.05vw 0.35vw 0.05vw rgba(0,0,0,0.25)
+			user-select none
+
+		&:checked + label
+			background-color #a4a

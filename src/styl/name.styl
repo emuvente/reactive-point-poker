@@ -1,5 +1,8 @@
 .where
-	margin-left 0.5rem
+	margin 0 0.5rem 0.5rem
+
+	span
+		vertical-align middle
 
 	span:nth-child(even)
 		color #ccc
@@ -9,6 +12,14 @@
 		color #888
 		margin 0 0.2rem
 
+	.roles
+		display inline-block
+		vertical-align middle
+		margin 0 0.5rem
+
+		.role
+			margin 0.1rem 0.25rem
+
 .lobby .where
-	div:first-of-type, span:first-of-type
+	div:first-of-type, span:first-of-type, .roles
 		display none

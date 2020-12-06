@@ -40,6 +40,8 @@ export default changes => {
 	auth$.sampledBy(authUser$.filter(isNull)).observe(auth => auth.signInAnonymously());
 
 	// init updates
+	event$(changes, 'is_editor').filter(isBoolean).observe(is_editor => userRef && userRef.update({is_editor}));
+	event$(changes, 'is_voter').filter(isBoolean).observe(is_voter => userRef && userRef.update({is_voter}));
 	event$(changes, 'show_votes').filter(isBoolean).observe(show_votes => roomRef && roomRef.update({show_votes}));
 	event$(changes, 'votes').filter(isArray).observe(votes => roomRef && roomRef.update({votes}));
 	event$(changes, 'vote').filter(isString).observe(vote => userRef && userRef.update({vote}));
@@ -62,8 +64,10 @@ export default changes => {
 	// init user
 	const user$ = Kefir.combine([room$, authUser$.filter().map(v => v.uid)], (room, userId) => room.child(`users/${userId}`));
 
-	// handle special user name case
+	// handle special cases
 	Kefir.combine([user$.filter(), event$(changes, 'name').filter(isString)]).onValue(([user, name]) => user.update({name}));
+	Kefir.combine([user$.filter(), event$(changes, 'is_voter').filter(isBoolean)]).onValue(([user, is_voter]) => user.update({is_voter}));
+	Kefir.combine([user$.filter(), event$(changes, 'is_editor').filter(isBoolean)]).onValue(([user, is_editor]) => user.update({is_editor}));
 
 	return Kefir.combine([room$, user$])
 		.flatMap(([room, user]) => {
@@ -93,9 +97,9 @@ export default changes => {
 				.filter()
 				.sampledBy(
 					Kefir.fromEvents(user, 'value')
-					.map(snap => snap.val())
-					.filter(isNull)
-					.map(()=>true)
+						.map(snap => snap.val())
+						.filter(isNull)
+						.map(()=>true)
 				).observe(userVal => user.update(userVal));
 
 			// transaction to merge changes to topic
@@ -121,7 +125,9 @@ export default changes => {
 
 			// return new streams
 			return Kefir.merge([
+				// Convert snapshots of references to change streams
 				snapToEvent$(arrayFlatMap(refs, ref => Kefir.fromEvents(ref, 'value'))),
+				// Topic events; 'change' if notfrom this user and 'report' if from this user
 				topic$.filter(topic => topic.uid !== user.key).map(topic => ({'change:topic': topic.value})),
 				topic$.filter(topic => topic.uid === user.key).map(topic => ({'report:topic': topic.value}))
 			]);
