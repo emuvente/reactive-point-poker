@@ -15,22 +15,14 @@
   "author": "@emuvente",
   "license": "MIT",
   "dependencies": {
+    "@babel/core": "^7.12.9",
+    "@babel/preset-env": "^7.12.7",
+    "babel-loader": "^8.2.2",
     "compression": "^1.6.1",
     "core-js": "^3.8.1",
     "domchanger": "^1.0.2",
     "express": "^4.13.4",
     "firebase": "^8.1.2",
-    "kefir": "^3.7.1",
-    "local-storage": "^2.0.0",
-    "lodash": "^4.5.1",
-    "regenerator-runtime": "^0.13.7",
-    "text-diff": "^1.0.1"
-  },
-  "devDependencies": {
-    "@babel/core": "^7.12.9",
-    "@babel/preset-env": "^7.12.7",
-    "babel-loader": "^8.2.2",
-    "eslint": "^7.15.0",
     "gulp": "^4.0.2",
     "gulp-ejs": "^5.1.0",
     "gulp-livereload": "^4.0.2",
@@ -39,9 +31,17 @@
     "gulp-stylus": "^2.7.0",
     "gulp-svgmin": "^3.0.0",
     "gulp-svgstore": "^7.0.1",
+    "kefir": "^3.7.1",
+    "local-storage": "^2.0.0",
+    "lodash": "^4.5.1",
     "nib": "^1.1.2",
+    "regenerator-runtime": "^0.13.7",
+    "text-diff": "^1.0.1",
     "webpack": "^5.10.0",
     "webpack-stream": "^6.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^7.15.0"
   },
   "browserslist": [
     "last 2 version",
