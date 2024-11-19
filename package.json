@@ -22,7 +22,7 @@
     "core-js": "^3.8.1",
     "domchanger": "^1.0.2",
     "express": "^4.13.4",
-    "firebase": "^8.1.2",
+    "firebase": "^10.9.0",
     "gulp": "^4.0.2",
     "gulp-ejs": "^5.1.0",
     "gulp-livereload": "^4.0.2",
