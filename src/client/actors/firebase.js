@@ -15,9 +15,23 @@ import textMerge from '../lib/textMerge';
 import Kefir from 'kefir';
 
 // init Firebase library
-import 'firebase/auth';
-import 'firebase/database';
-import Firebase from 'firebase/app';
+import { initializeApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import {
+	getDatabase,
+	connectDatabaseEmulator,
+	ref as dbRef,
+	child,
+	update,
+	remove,
+	off,
+	onValue,
+	onDisconnect,
+	runTransaction
+} from 'firebase/database';
+
+// create a stream of snapshots from a Firebase reference's value events
+const value$ = ref => Kefir.stream(e => onValue(ref, e.emit));
 
 // create an event stream from a Firebase Snapshot
 const snapToEvent$ = stream => stream.map(snap => ({ [`change:${snap.key}`]: snap.val() })).skipDuplicates(isEqual);
@@ -30,32 +44,32 @@ export default changes => {
 	const app$ = event$(changes, 'firebase')
 		.filter(isObject)
 		.map(config => {
-			const app = Firebase.initializeApp(config);
+			const app = initializeApp(config);
 			if(import.meta.env.DEV) {
-				app.auth().useEmulator(`http://${location.hostname}:9099`);
-				app.database().useEmulator(location.hostname, 9000);
+				connectAuthEmulator(getAuth(app), `http://${location.hostname}:9099`);
+				connectDatabaseEmulator(getDatabase(app), location.hostname, 9000);
 			}
 			return app;
 		})
 		.filter();
 
 	// init auth
-	const auth$ = app$.map(app => app.auth());
-	const authUser$ = auth$.flatMap(auth => Kefir.stream(e => auth.onAuthStateChanged(e.emit)));
+	const auth$ = app$.map(app => getAuth(app));
+	const authUser$ = auth$.flatMap(auth => Kefir.stream(e => onAuthStateChanged(auth, e.emit)));
 
 	// sign in user if they aren't
-	auth$.sampledBy(authUser$.filter(isNull)).observe(auth => auth.signInAnonymously());
+	auth$.sampledBy(authUser$.filter(isNull)).observe(auth => signInAnonymously(auth));
 
 	// init updates
-	event$(changes, 'is_editor').filter(isBoolean).observe(is_editor => userRef && userRef.update({is_editor}));
-	event$(changes, 'is_voter').filter(isBoolean).observe(is_voter => userRef && userRef.update({is_voter}));
-	event$(changes, 'show_votes').filter(isBoolean).observe(show_votes => roomRef && roomRef.update({show_votes}));
-	event$(changes, 'votes').filter(isArray).observe(votes => roomRef && roomRef.update({votes}));
-	event$(changes, 'vote').filter(isString).observe(vote => userRef && userRef.update({vote}));
+	event$(changes, 'is_editor').filter(isBoolean).observe(is_editor => userRef && update(userRef, {is_editor}));
+	event$(changes, 'is_voter').filter(isBoolean).observe(is_voter => userRef && update(userRef, {is_voter}));
+	event$(changes, 'show_votes').filter(isBoolean).observe(show_votes => roomRef && update(roomRef, {show_votes}));
+	event$(changes, 'votes').filter(isArray).observe(votes => roomRef && update(roomRef, {votes}));
+	event$(changes, 'vote').filter(isString).observe(vote => userRef && update(userRef, {vote}));
 
 	// clear votes transaction
 	event$(changes, 'clear_votes').filter().observe(() => roomRef &&
-		roomRef.child('users').transaction(users =>
+		runTransaction(child(roomRef, 'users'), users =>
 			mapValues(users, user =>
 				set(user, 'vote', '')
 			)
@@ -63,68 +77,68 @@ export default changes => {
 	);
 
 	// init room
-	const room$ = app$.map(app => app.database().ref())
+	const room$ = app$.map(app => dbRef(getDatabase(app)))
 		.combine(event$(changes, 'room').filter().skipDuplicates(),
-			(db, roomName) => db.child(roomName)
+			(db, roomName) => child(db, roomName)
 		).filter();
 
 	// init user
-	const user$ = Kefir.combine([room$, authUser$.filter().map(v => v.uid)], (room, userId) => room.child(`users/${userId}`));
+	const user$ = Kefir.combine([room$, authUser$.filter().map(v => v.uid)], (room, userId) => child(room, `users/${userId}`));
 
 	// handle special cases
-	Kefir.combine([user$.filter(), event$(changes, 'name').filter(isString)]).onValue(([user, name]) => user.update({name}));
-	Kefir.combine([user$.filter(), event$(changes, 'is_voter').filter(isBoolean)]).onValue(([user, is_voter]) => user.update({is_voter}));
-	Kefir.combine([user$.filter(), event$(changes, 'is_editor').filter(isBoolean)]).onValue(([user, is_editor]) => user.update({is_editor}));
+	Kefir.combine([user$.filter(), event$(changes, 'name').filter(isString)]).onValue(([user, name]) => update(user, {name}));
+	Kefir.combine([user$.filter(), event$(changes, 'is_voter').filter(isBoolean)]).onValue(([user, is_voter]) => update(user, {is_voter}));
+	Kefir.combine([user$.filter(), event$(changes, 'is_editor').filter(isBoolean)]).onValue(([user, is_editor]) => update(user, {is_editor}));
 
 	return Kefir.combine([room$, user$])
 		.flatMap(([room, user]) => {
 			// drop references to old room and update room reference
-			if(roomRef) roomRef.off();
+			if(roomRef) off(roomRef);
 			roomRef = room;
 
 			// remove user from old room and update user reference
-			if(userRef) userRef.remove();
+			if(userRef) remove(userRef);
 			userRef = user;
-			user.onDisconnect().remove();
+			onDisconnect(user).remove();
 
 			// drop old references
-			refs.map(ref => ref.off());
+			refs.map(ref => off(ref));
 
 			// make new references
 			refs = [
-				room.child('show_votes'),
-				room.child('votes'),
-				user.child('vote'),
-				room.child('users')
+				child(room, 'show_votes'),
+				child(room, 'votes'),
+				child(user, 'vote'),
+				child(room, 'users')
 			];
 
 			// recover user if they somehow go null
-			Kefir.fromEvents(user, 'value')
+			value$(user)
 				.map(snap => snap.val())
 				.filter()
 				.sampledBy(
-					Kefir.fromEvents(user, 'value')
+					value$(user)
 						.map(snap => snap.val())
 						.filter(isNull)
 						.map(()=>true)
-				).observe(userVal => user.update(userVal));
+				).observe(userVal => update(user, userVal));
 
 			// transaction to merge changes to topic
 			Kefir.combine([
 				Kefir.merge([event$(changes, 'topic'), Kefir.constant('')]),
-				Kefir.fromEvents(room.child('topic'), 'value')
+				value$(child(room, 'topic'))
 					.map(snap => snap.val())
 					.map(val => val === null ? '' : val)
 					.map(val => val.split(':'))
 					.map(([, ...topics]) => topics.join(':')),
 			]).sampledBy(event$(changes, 'topic').filter(isString))
-				.observe(([value, local]) => room.child('topic').transaction(remote => {
+				.observe(([value, local]) => runTransaction(child(room, 'topic'), remote => {
 					remote = remote === null ? '' : remote.split(':')[1];
 					return `${user.key}:${textMerge(local, value, remote)}`;
 				}));
 
 			// make topic stream
-			const topic$ = Kefir.fromEvents(room.child('topic'), 'value')
+			const topic$ = value$(child(room, 'topic'))
 				.map(snap => snap.val())
 				.map(val => val === null ? '' : val)
 				.map(val => val.split(':'))
@@ -133,8 +147,8 @@ export default changes => {
 			// return new streams
 			return Kefir.merge([
 				// Convert snapshots of references to change streams
-				snapToEvent$(arrayFlatMap(refs, ref => Kefir.fromEvents(ref, 'value'))),
-				// Topic events; 'change' if notfrom this user and 'report' if from this user
+				snapToEvent$(arrayFlatMap(refs, value$)),
+				// Topic events; 'change' if not from this user and 'report' if from this user
 				topic$.filter(topic => topic.uid !== user.key).map(topic => ({'change:topic': topic.value})),
 				topic$.filter(topic => topic.uid === user.key).map(topic => ({'report:topic': topic.value}))
 			]);
