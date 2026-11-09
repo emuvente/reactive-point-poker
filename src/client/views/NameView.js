@@ -1,4 +1,3 @@
-import w from 'window';
 import Kefir from 'kefir';
 import View from '../lib/View';
 import TextInputView from './TextInputView';
@@ -39,7 +38,7 @@ export default class NameView extends View {
 		return ['div', {class: 'where'},
 			[this.nameView.component],
 			['span', '@'],
-			['span', w.location.hostname],
+			['span', location.hostname],
 			['span', '/'],
 			[this.roomView.component],
 			['div', {class: 'roles'},

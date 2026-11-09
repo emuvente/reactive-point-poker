@@ -1,5 +1,4 @@
 import View from '../lib/View';
-import w from 'window';
 
 export default class IconButtonView extends View {
 	constructor(changes, { name, className }) {
@@ -10,8 +9,8 @@ export default class IconButtonView extends View {
 	}
 
 	_render() {
-		const elem = w.document.createElement('span');
-		elem.innerHTML = `<svg><use xlink:href="/img/icons.svg#${this.name}" /></svg>`;
+		const elem = document.createElement('span');
+		elem.innerHTML = `<svg><use xlink:href="/__spritemap#sprite-${this.name}" /></svg>`;
 
 		return ['button',
 			{

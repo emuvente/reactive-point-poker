@@ -1,6 +1,5 @@
 import View from '../lib/View';
 import Kefir from 'kefir';
-import w from 'window';
 
 export default class TextInputView extends View {
 	constructor(changes, { name, className, placeholder }) {
@@ -18,7 +17,7 @@ export default class TextInputView extends View {
 				.map(v => v.replace('change:',''))
 				.map(v => ({[`submit:${this.name}`]: v}))
 		]);
-		this.canvas = w.document.createElement('canvas');
+		this.canvas = document.createElement('canvas');
 	}
 
 	measure(v) {
