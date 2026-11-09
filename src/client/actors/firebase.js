@@ -29,7 +29,14 @@ export default changes => {
 	// init Firebase
 	const app$ = event$(changes, 'firebase')
 		.filter(isObject)
-		.map(config => Firebase.initializeApp(config))
+		.map(config => {
+			const app = Firebase.initializeApp(config);
+			if(import.meta.env.DEV) {
+				app.auth().useEmulator(`http://${location.hostname}:9099`);
+				app.database().useEmulator(location.hostname, 9000);
+			}
+			return app;
+		})
 		.filter();
 
 	// init auth

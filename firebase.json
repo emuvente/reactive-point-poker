@@ -1,16 +1,24 @@
 {
   "database": {
-    "rules": "src/server/database.rules.json"
+    "rules": "database.rules.json"
   },
   "hosting": {
-    "public": "public",
-    "cleanUrls": true,
-    "trailingSlash": false,
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
       {
         "source": "**",
         "destination": "/index.html"
       }
     ]
+  },
+  "emulators": {
+    "auth": { "port": 9099 },
+    "database": { "port": 9000 },
+    "ui": { "enabled": true }
   }
 }
